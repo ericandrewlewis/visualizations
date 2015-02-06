@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+circle {
+  stroke: #fff;
+}
+
+</style>
+<body>
+<script src="http://d3js.org/d3.v3.js"></script>
+<script>
+
+var width = 960,
+    height = 500,
+    padding = 6, // separation between nodes
+    maxRadius = 30;
+
+var numberOfNodes = 5;
+var color = d3.scale.category10()
+    .domain(d3.range(numberOfNodes));
+
+var x = d3.scale.linear()
+    .domain( [0, 5] )
+    .range( [0, width ] );
+
+var data = [
+  {
+    value: 3.2,
+    size: 300
+  },
+  {
+    value: 3.8,
+    size: 45
+  },
+  {
+    value: 4.0,
+    size: 4400
+  },
+  {
+    value: 0.2,
+    size: 233
+  },
+  {
+    value: 4.2,
+    size: 4000
+  }
+];
+
+// Map the basic node data to d3-friendly format.
+var nodes = data.map(function(node, index) {
+  return {
+    radius: node.size / 100,
+    // Give each node its own color.
+    color: color(index),
+    // Set the node's gravitational center.
+    cx: x(node.value),
+    cy: height / 2,
+    x: x(node.value),
+    y: height / 2
+  };
+});
+
+var force = d3.layout.force()
+    .nodes(nodes)
+    .size([width, height])
+    .gravity(0)
+    .charge(0)
+    .on("tick", tick)
+    .start();
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+var circle = svg.selectAll("circle")
+    .data(nodes)
+  .enter().append("circle")
+    .attr("r", function(d) { return d.radius; })
+    .style("fill", function(d) { return d.color; });
+
+function tick(e) {
+  circle
+      .each(gravity(.2 * e.alpha))
+      .each(collide(.5))
+      .attr("cx", function(d) { return d.x; })
+      .attr("cy", function(d) { return d.y; });
+}
+
+// On a tick, move the node towards its desired position.
+function gravity(alpha) {
+  return function(d) {
+    d.y += (d.cy - d.y) * alpha;
+    d.x += (d.cx - d.x) * alpha;
+  };
+}
+
+// Resolve collisions between nodes.
+function collide(alpha) {
+  var quadtree = d3.geom.quadtree(nodes);
+  return function(d) {
+    var r = d.radius + maxRadius + padding,
+        // left boundary of circle
+        nx1 = d.x - r,
+        // right boundary of circle
+        nx2 = d.x + r,
+        // bottom boundary of circle
+        ny1 = d.y - r,
+        // top boundary of circle
+        ny2 = d.y + r;
+    quadtree.visit(function(quad, x1, y1, x2, y2) {
+      // if there's a point and it's not the
+      if (quad.point && (quad.point !== d)) {
+            // x distance between d circle and the point in the quadtree
+        var x = d.x - quad.point.x,
+            // y distance between d circle and the point in the quadtree
+            y = d.y - quad.point.y,
+            // the line distance between the two
+            l = Math.sqrt(x * x + y * y),
+            // minimum distance between the two circles, respecting cluster padding.
+            r = d.radius + quad.point.radius + (d.color !== quad.point.color) * padding;
+
+        // if the distance between the two is less than the desired distance
+        if (l < r) {
+          l = (l - r) / l * alpha;
+          d.x -= x *= l;
+          d.y -= y *= l;
+          quad.point.x += x;
+          quad.point.y += y;
+        }
+      }
+      return x1 > nx2 || x2 < nx1 || y1 > ny2 || y2 < ny1;
+    });
+  };
+}
+
+</script>
