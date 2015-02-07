@@ -5,51 +5,42 @@
 circle {
   stroke: #fff;
 }
-
+.x.axis .domain {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
 </style>
 <body>
 <script src="http://d3js.org/d3.v3.js"></script>
 <script>
 
+    // width / height of the entire thing
 var width = 960,
     height = 500,
-    padding = 6, // separation between nodes
-    maxRadius = 30;
+    // padding between nodes
+    padding = 6,
+    maxRadius = 30,
+    numberOfNodes = 100;
 
-var numberOfNodes = 5;
 var color = d3.scale.category10()
     .domain(d3.range(numberOfNodes));
+
+var data = d3.range(numberOfNodes).map(function() {
+  var value = Math.floor(Math.random() * 50) / 10,
+      size = 300 * Math.floor( Math.sqrt((value + 1) / numberOfNodes * -Math.log(Math.random())) * maxRadius ),
+      datum = {value: value, size: size};
+  return datum;
+});
 
 var x = d3.scale.linear()
     .domain( [0, 5] )
     .range( [0, width ] );
 
-var data = [
-  {
-    value: 3.2,
-    size: 300
-  },
-  {
-    value: 3.8,
-    size: 45
-  },
-  {
-    value: 4.0,
-    size: 4400
-  },
-  {
-    value: 0.2,
-    size: 233
-  },
-  {
-    value: 4.2,
-    size: 4000
-  }
-];
-
 // Map the basic node data to d3-friendly format.
 var nodes = data.map(function(node, index) {
   return {
+    originalX: node.value,
     radius: node.size / 100,
     // Give each node its own color.
     color: color(index),
@@ -57,7 +48,7 @@ var nodes = data.map(function(node, index) {
     cx: x(node.value),
     cy: height / 2,
     x: x(node.value),
-    y: height / 2
+    y: height / 2 + Math.floor( Math.random() * 50 )
   };
 });
 
@@ -73,17 +64,28 @@ var svg = d3.select("body").append("svg")
     .attr("width", width)
     .attr("height", height);
 
+var xAxis = d3.svg.axis()
+    .scale(x);
+
+svg.append("g")
+    .attr("class", "x axis")
+    .attr("transform", "translate(0," + height * .75 + ")")
+    .call(xAxis);
+
 var circle = svg.selectAll("circle")
     .data(nodes)
   .enter().append("circle")
     .attr("r", function(d) { return d.radius; })
+    .attr("data-val-x", function(d) { return d.originalX; })
     .style("fill", function(d) { return d.color; });
 
 function tick(e) {
   circle
       .each(gravity(.2 * e.alpha))
       .each(collide(.5))
-      .attr("cx", function(d) { return d.x; })
+      .attr("cx", function(d) {
+        return d.x;
+      })
       .attr("cy", function(d) { return d.y; });
 }
 
@@ -91,7 +93,7 @@ function tick(e) {
 function gravity(alpha) {
   return function(d) {
     d.y += (d.cy - d.y) * alpha;
-    d.x += (d.cx - d.x) * alpha;
+    d.x += (d.cx - d.x) * alpha * 5;
   };
 }
 
@@ -118,7 +120,7 @@ function collide(alpha) {
             // the line distance between the two
             l = Math.sqrt(x * x + y * y),
             // minimum distance between the two circles, respecting cluster padding.
-            r = d.radius + quad.point.radius + (d.color !== quad.point.color) * padding;
+            r = d.radius + quad.point.radius + padding;
 
         // if the distance between the two is less than the desired distance
         if (l < r) {
