@@ -19,7 +19,7 @@ circle {
 var width = 960,
     height = 500,
     // padding between nodes
-    padding = 6,
+    padding = 2,
     maxRadius = 30,
     numberOfNodes = 100;
 
@@ -28,7 +28,7 @@ var color = d3.scale.category10()
 
 var data = d3.range(numberOfNodes).map(function() {
   var value = Math.floor(Math.random() * 50) / 10,
-      size = 300 * Math.floor( Math.sqrt((value + 1) / numberOfNodes * -Math.log(Math.random())) * maxRadius ),
+      size = 1000 * ( Math.ceil(Math.random() * 3 ) ),
       datum = {value: value, size: size};
   return datum;
 });
@@ -48,7 +48,9 @@ var nodes = data.map(function(node, index) {
     cx: x(node.value),
     cy: height / 2,
     x: x(node.value),
-    y: height / 2 + Math.floor( Math.random() * 50 )
+    // Add some randomization to the placement;
+    // nodes stacked on the same point can produce NaN errors.
+    y: height / 2 + Math.random()
   };
 });
 
@@ -75,9 +77,16 @@ svg.append("g")
 var circle = svg.selectAll("circle")
     .data(nodes)
   .enter().append("circle")
-    .attr("r", function(d) { return d.radius; })
-    .attr("data-val-x", function(d) { return d.originalX; })
     .style("fill", function(d) { return d.color; });
+
+// animate the radius of all nodes
+circle.transition()
+    .duration(750)
+    .delay(function(d, i) { return i * 5; })
+    .attrTween("r", function(d) {
+      var i = d3.interpolate(0, d.radius);
+      return function(t) { return d.radius = i(t); };
+    });
 
 function tick(e) {
   circle
@@ -93,7 +102,7 @@ function tick(e) {
 function gravity(alpha) {
   return function(d) {
     d.y += (d.cy - d.y) * alpha;
-    d.x += (d.cx - d.x) * alpha * 5;
+    d.x += (d.cx - d.x) * alpha * 3;
   };
 }
 
