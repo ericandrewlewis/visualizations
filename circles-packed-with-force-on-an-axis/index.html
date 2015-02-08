@@ -22,10 +22,6 @@ var margin = {top: 50, right: 50, bottom: 50, left: 50},
     maxRadius = 1000,
     numberOfNodes = 50;
 
-// Generate a color palette.
-var color = d3.scale.category20b()
-  .domain(d3.range(numberOfNodes));
-
 // Create random node data.
 var data = d3.range(numberOfNodes).map(function() {
   var value = Math.floor(Math.random() * 50) / 10,
@@ -44,7 +40,7 @@ var nodes = data.map(function(node, index) {
     idealradius: node.size / 100,
     radius: 0,
     // Give each node a random color.
-    color: color(index),
+    color: '#ff7f0e',
     // Set the node's gravitational centerpoint.
     idealcx: x(node.value),
     idealcy: height / 2,
