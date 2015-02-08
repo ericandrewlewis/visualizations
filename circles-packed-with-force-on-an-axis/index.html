@@ -16,41 +16,45 @@ circle {
 <script>
 
     // width / height of the entire thing
-var width = 960,
-    height = 500,
+var margin = {top: 50, right: 50, bottom: 50, left: 50},
+    width = 960 - margin.left - margin.right,
+    height = 600 - margin.top - margin.bottom,
     // padding between nodes
     padding = 2,
-    maxRadius = 30,
-    numberOfNodes = 100;
+    maxRadius = 500,
+    numberOfNodes = 50;
 
-var color = d3.scale.category10()
+var color = d3.scale.category20b()
     .domain(d3.range(numberOfNodes));
 
+// Create random node data.
 var data = d3.range(numberOfNodes).map(function() {
   var value = Math.floor(Math.random() * 50) / 10,
-      size = 1000 * ( Math.ceil(Math.random() * 3 ) ),
+      size = Math.floor( Math.sqrt((value + 1) / numberOfNodes * -Math.log(Math.random())) * maxRadius * 10 ),
       datum = {value: value, size: size};
   return datum;
 });
 
 var x = d3.scale.linear()
     .domain( [0, 5] )
-    .range( [0, width ] );
+    .range( [margin.left, width - margin.right ] );
 
 // Map the basic node data to d3-friendly format.
 var nodes = data.map(function(node, index) {
+  var h = height / 2 + Math.random();
   return {
-    originalX: node.value,
+    originalX: x(node.value),
+    originalY: h,
     radius: node.size / 100,
     // Give each node its own color.
     color: color(index),
     // Set the node's gravitational center.
     cx: x(node.value),
-    cy: height / 2,
+    cy: height / 3,
     x: x(node.value),
     // Add some randomization to the placement;
     // nodes stacked on the same point can produce NaN errors.
-    y: height / 2 + Math.random()
+    y: h
   };
 });
 
@@ -63,15 +67,15 @@ var force = d3.layout.force()
     .start();
 
 var svg = d3.select("body").append("svg")
-    .attr("width", width)
-    .attr("height", height);
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom);
 
 var xAxis = d3.svg.axis()
     .scale(x);
 
 svg.append("g")
     .attr("class", "x axis")
-    .attr("transform", "translate(0," + height * .75 + ")")
+    .attr("transform", "translate(0," + ( margin.top + ( height * 1/2 ) ) + ")")
     .call(xAxis);
 
 var circle = svg.selectAll("circle")
@@ -88,17 +92,22 @@ circle.transition()
       return function(t) { return d.radius = i(t); };
     });
 
+/**
+ * On a tick, apply custom gravity, collision detection, and circle placement.
+ */
 function tick(e) {
   circle
       .each(gravity(.2 * e.alpha))
       .each(collide(.5))
-      .attr("cx", function(d) {
-        return d.x;
-      })
+      .attr("cx", function(d) { return d.x; })
       .attr("cy", function(d) { return d.y; });
 }
 
-// On a tick, move the node towards its desired position.
+/**
+ * On a tick, move the node towards its desired position,
+ * with a preference for accuracy of the node's x-axis value
+ * over smoothness of the clustering.
+ */
 function gravity(alpha) {
   return function(d) {
     d.y += (d.cy - d.y) * alpha;
@@ -111,27 +120,16 @@ function collide(alpha) {
   var quadtree = d3.geom.quadtree(nodes);
   return function(d) {
     var r = d.radius + maxRadius + padding,
-        // left boundary of circle
         nx1 = d.x - r,
-        // right boundary of circle
         nx2 = d.x + r,
-        // bottom boundary of circle
         ny1 = d.y - r,
-        // top boundary of circle
         ny2 = d.y + r;
     quadtree.visit(function(quad, x1, y1, x2, y2) {
-      // if there's a point and it's not the
       if (quad.point && (quad.point !== d)) {
-            // x distance between d circle and the point in the quadtree
         var x = d.x - quad.point.x,
-            // y distance between d circle and the point in the quadtree
             y = d.y - quad.point.y,
-            // the line distance between the two
             l = Math.sqrt(x * x + y * y),
-            // minimum distance between the two circles, respecting cluster padding.
             r = d.radius + quad.point.radius + padding;
-
-        // if the distance between the two is less than the desired distance
         if (l < r) {
           l = (l - r) / l * alpha;
           d.x -= x *= l;
