@@ -1,9 +1,8 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 <style>
-
-circle {
-  stroke: #fff;
+svg {
+  font: 10px sans-serif;
 }
 .x.axis .domain {
   fill: none;
@@ -17,7 +16,7 @@ circle {
 
 var margin = {top: 50, right: 50, bottom: 50, left: 50},
     width = 960 - margin.left - margin.right,
-    height = 600 - margin.top - margin.bottom,
+    height = 500 - margin.top - margin.bottom,
     // padding between nodes
     padding = 2,
     maxRadius = 1000,
@@ -37,7 +36,7 @@ var data = d3.range(numberOfNodes).map(function() {
 
 var x = d3.scale.linear()
   .domain( [0, 5] )
-  .range( [margin.left, width - margin.right ] );
+  .range( [margin.left, width ] );
 
 // Map the basic node data to d3-friendly format.
 var nodes = data.map(function(node, index) {
@@ -48,7 +47,7 @@ var nodes = data.map(function(node, index) {
     color: color(index),
     // Set the node's gravitational centerpoint.
     idealcx: x(node.value),
-    idealcy: height / 3,
+    idealcy: height / 2,
     x: x(node.value),
     // Add some randomization to the placement;
     // nodes stacked on the same point can produce NaN errors.
@@ -156,7 +155,7 @@ function renderGraph() {
 
   svg.append("g")
     .attr("class", "x axis")
-    .attr("transform", "translate(0," + ( margin.top + ( height * 1/2 ) ) + ")")
+    .attr("transform", "translate(0," + ( margin.top + ( height * 3/4 ) ) + ")")
     .call(xAxis);
 
   var circle = svg.selectAll("circle")
