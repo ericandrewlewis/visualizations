@@ -67,8 +67,8 @@ var svg = d3.select("body").append("svg")
   .attr("height", height + margin.top + margin.bottom);
 
 var loading = svg.append("text")
-  .attr("x", width / 2)
-  .attr("y", height / 2)
+  .attr("x", ( width + margin.left + margin.right ) / 2)
+  .attr("y", ( height + margin.top + margin.bottom ) / 2)
   .attr("dy", ".35em")
   .style("text-anchor", "middle")
   .text("Simulating. One moment please…");
