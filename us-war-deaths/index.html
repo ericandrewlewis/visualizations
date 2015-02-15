@@ -1,207 +1,172 @@
 <!DOCTYPE html>
-<head>
 <meta charset="utf-8">
 <style>
+svg {
+  font: 10px sans-serif;
+}
+.x.axis .domain {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+</style>
+<body>
+<script src="http://d3js.org/d3.v3.js"></script>
+<script>
 
-text {
-	font: 10px sans-serif;
+var margin = {top: 50, right: 50, bottom: 50, left: 50},
+    width = 960 - margin.left - margin.right,
+    height = 500 - margin.top - margin.bottom,
+    // padding between nodes
+    padding = 5,
+    maxRadius = 300,
+    numberOfNodes = 10;
+
+// Create the svg element.
+var svg = d3.select("body").append("svg")
+  .attr("width", width + margin.left + margin.right)
+  .attr("height", height + margin.top + margin.bottom);
+
+// Add the loading splash.
+var loading = svg.append("text")
+  .attr("x", ( width + margin.left + margin.right ) / 2)
+  .attr("y", ( height + margin.top + margin.bottom ) / 2)
+  .attr("dy", ".35em")
+  .style("text-anchor", "middle")
+  .text("Simulating. One moment please…");
+
+var x = d3.scale.linear()
+  .domain( [1770, 2015] )
+  .range( [margin.left, width + margin.right ] );
+
+var nodes = null;
+
+var xAxis = d3.svg.axis()
+    .scale(x);
+
+var force = null;
+
+data = d3.json("data.json", function( error, json ) {
+  // Map the basic node data to d3-friendly format.
+  nodes = json.map(function(node, index) {
+    return {
+      warName: node.war,
+      idealradius: node.dead / 5000,
+      radius: 0,
+      // Give each node a random color.
+      color: '#222',
+      // Set the node's gravitational centerpoint.
+      idealcx: x(node['start-date']),
+      idealcy: height / 2,
+      x: x(node['start-date']),
+      // Add some randomization to the placement;
+      // nodes stacked on the same point can produce NaN errors.
+      y: height / 2 + Math.random()
+    };
+  });
+
+	force = d3.layout.force()
+    .nodes(nodes)
+    .size([width, height])
+    .gravity(0)
+    .charge(0)
+    .on("tick", tick)
+    .start();
+
+  renderGraph();
+});
+
+/**
+ * On a tick, apply custom gravity, collision detection, and node placement.
+ */
+function tick(e) {
+  for ( i = 0; i < nodes.length; i++ ) {
+    var node = nodes[i];
+    /*
+     * Animate the radius via the tick.
+     *
+     * Typically this would be performed as a transition on the SVG element itself,
+     * but since this is a static force layout, we must perform it on the node.
+     */
+    node.radius = node.idealradius - node.idealradius * e.alpha * 10;
+    node = gravity(.2 * e.alpha)(node);
+    node = collide(.5)(node);
+    node.cx = node.x;
+    node.cy = node.y;
+  }
 }
 
-</style>
-</head>
-<body>
-	<h1>United States military casualties of war</h1>
-	<p>By number of total deaths<sup><a href="#footnote-1">1</a>.</sup> Limited to twelve conflicts with highest casualties.</p>
-	<div id="visualization"></div>
-	<ol>
-		<li id="footnote-1">
-			<a href="http://en.wikipedia.org/wiki/United_States_military_casualties_of_war">United States military casualties of war</a>
-		</li>
-	</ol>
-	<script src="http://d3js.org/d3.v3.min.js"></script>
-	<script>
-		var data = [
-			{
-			"War":"Civil War",
-			"Start Date":1861,
-			"End Date":1865,
-			"Combat":214938,
-			"Other":500000,
-			"Dead":750000,
-			"Wounded":null,
-			"Dead & Wounded":null,
-			"Population at start":31443000
-			},
-			{
-			"War":"World War II",
-			"Start Date":1941,
-			"End Date":1945,
-			"Combat":291557,
-			"Other":113842,
-			"Dead":405399,
-			"Wounded":670846,
-			"Dead & Wounded":1076245,
-			"Population at start":133402000
-			},
-			{
-			"War":"World War I",
-			"Start Date":1917,
-			"End Date":1918,
-			"Combat":53402,
-			"Other":63114,
-			"Dead":116516,
-			"Wounded":204002,
-			"Dead & Wounded":320518,
-			"Population at start":103268000
-			},
-			{
-			"War":"Vietnam War",
-			"Start Date":1955,
-			"End Date":1975,
-			"Combat":47424,
-			"Other":10785,
-			"Dead":58209,
-			"Wounded":153303,
-			"Dead & Wounded":211454,
-			"Population at start":179323175
-			},
-			{
-			"War":"Korean War",
-			"Start Date":1950,
-			"End Date":1953,
-			"Combat":33686,
-			"Other":2830,
-			"Dead":36516,
-			"Wounded":92134,
-			"Dead & Wounded":128650,
-			"Population at start":151325000
-			},
-			{
-			"War":"American Revolutionary War",
-			"Start Date":1775,
-			"End Date":1783,
-			"Combat":8000,
-			"Other":null,
-			"Dead":25000,
-			"Wounded":25000,
-			"Dead & Wounded":50000,
-			"Population at start":2500000
-			},
-			{
-			"War":"War of 1812",
-			"Start Date":1812,
-			"End Date":1815,
-			"Combat":2260,
-			"Other":12740,
-			"Dead":15000,
-			"Wounded":4505,
-			"Dead & Wounded":20000,
-			"Population at start":8000000
-			},
-			{
-			"War":"Mexican-American War",
-			"Start Date":1846,
-			"End Date":1848,
-			"Combat":1733,
-			"Other":11550,
-			"Dead":13283,
-			"Wounded":4152,
-			"Dead & Wounded":17435,
-			"Population at start":21406000
-			},
-			{
-			"War":"Iraq War",
-			"Start Date":2003,
-			"End Date":2011,
-			"Combat":3527,
-			"Other":961,
-			"Dead":4488,
-			"Wounded":32222,
-			"Dead & Wounded":36710,
-			"Population at start":294043000
-			},
-			{
-			"War":"Philippine-American War",
-			"Start Date":1898,
-			"End Date":1913,
-			"Combat":1020,
-			"Other":3176,
-			"Dead":4196,
-			"Wounded":2930,
-			"Dead & Wounded":7126,
-			"Population at start":72129001
-			},
-			{
-			"War":"Spanish-American War",
-			"Start Date":1898,
-			"End Date":1898,
-			"Combat":385,
-			"Other":2061,
-			"Dead":2446,
-			"Wounded":1622,
-			"Dead & Wounded":4068,
-			"Population at start":72129001
-			},
-			{
-			"War":"Afghanistan War",
-			"Start Date":2001,
-			"End Date":2015,
-			"Combat":1742,
-			"Other":471,
-			"Dead":2229,
-			"Wounded":18675,
-			"Dead & Wounded":20904,
-			"Population at start":294043000
-			}
-		];
+/**
+ * On a tick, move the node towards its desired position,
+ * with a preference for accuracy of the node's x-axis placement
+ * over smoothness of the clustering, which would produce inaccurate data presentation.
+ */
+function gravity(alpha) {
+  return function(d) {
+    d.y += (d.idealcy - d.y) * alpha;
+    d.x += (d.idealcx - d.x) * alpha * 3;
+    return d;
+  };
+}
 
-		var svg = d3.select("#visualization").append("svg")
-			.attr("width", 800)
-			.attr("height", 700);
+/**
+ * On a tick, resolve collisions between nodes.
+ */
+function collide(alpha) {
+  var quadtree = d3.geom.quadtree(nodes);
+  return function(d) {
+    var r = d.radius + maxRadius + padding,
+        nx1 = d.x - r,
+        nx2 = d.x + r,
+        ny1 = d.y - r,
+        ny2 = d.y + r;
+    quadtree.visit(function(quad, x1, y1, x2, y2) {
+      if (quad.point && (quad.point !== d)) {
+        var x = d.x - quad.point.x,
+            y = d.y - quad.point.y,
+            l = Math.sqrt(x * x + y * y),
+            r = d.radius + quad.point.radius + padding;
+        if (l < r) {
+          l = (l - r) / l * alpha;
+          d.x -= x *= l;
+          d.y -= y *= l;
+          quad.point.x += x;
+          quad.point.y += y;
+        }
+      }
+      return x1 > nx2 || x2 < nx1 || y1 > ny2 || y2 < ny1;
+    });
+    return d;
+  };
+}
 
-		var bubble = d3.layout.pack()
-			// Randomly sort the results.
-			.sort(function(a,b) {
-				return Math.random() - Math.random()
-			})
-			.size([800,700])
-			.padding(25);
+/**
+ * Run the force layout to compute where each node should be placed,
+ * then replace the loading text with the graph.
+ */
+function renderGraph() {
+  // Run the layout a fixed number of times.
+  // The ideal number of times scales with graph complexity.
+  // Of course, don't run too long—you'll hang the page!
+  force.start();
+  for (var i = 100; i > 0; --i) force.tick();
+  force.stop();
 
-		var color = d3.scale.category20();
+  svg.append("g")
+    .attr("class", "x axis")
+    .attr("transform", "translate(0," + ( margin.top + ( height * 3/4 ) ) + ")")
+    .call(xAxis);
 
-		// Create an empty selection
-		var node = svg.selectAll(".node")
-				// Bind data to the selection
-		    .data(bubble.nodes(transformDataForBubble(data))
-		    // Filter out the top-level group.
-		    .filter(function(d) { return !d.children; }))
-		  .enter().append("g")
-		    .attr("class", "node")
-		    // Pack layout takes care of translate() calculations for us, pass values through.
-		    .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+  var circle = svg.selectAll("circle")
+    .data(nodes)
+  .enter().append("circle")
+    .style("fill", function(d) { return d.color; })
+    .attr("cx", function(d) { return d.x} )
+    .attr("data-war", function(d) { return d.warName } )
+    .attr("cy", function(d) { return d.y} )
+    .attr("r", function(d) { return d.radius} );
 
-		// Create the circle inside the node.
-		node.append('circle')
-			// Pack layout takes care of the radius calculation for us, pass value through.
-		  .attr('r', function(d) { return d.r; })
-		  // Make the fill a random color.
-		  .style('fill', function(d, i) { return color(i); });
+  loading.remove();
+}
 
-		node.append('text')
-			.attr('dy', '.3em')
-			.style('text-anchor', 'middle')
-			.text(function(d) { return d.warName });
-
-		function transformDataForBubble(data){
-			nodes = [];
-			for ( i = 0; i < data.length; i++ ) {
-				nodes.push({
-					warName: data[i].War,
-					value: data[i].Dead
-				});
-			}
-			return { children: nodes };
-		}
-	</script>
-</body>
-</html>
+</script>
